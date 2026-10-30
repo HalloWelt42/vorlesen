@@ -20,7 +20,7 @@ from .fassung import FASSUNG, WURZEL
 from .sprechdienst import Sprechdienst
 from .stimmen import Stimmenquelle
 from .verlauf import Verlaufsbuch
-from .vorlesen import Vorleser
+from .vorlesen import VORGABE_TITEL, Vorleser
 
 
 def stimmen_angebot(vorleser: Vorleser):
@@ -28,9 +28,10 @@ def stimmen_angebot(vorleser: Vorleser):
 
     async def anbieter() -> Angebot:
         stimmen, stand = await vorleser.stimmenwahl()
-        optionen = [Option(wert=s.name, titel=s.titel, hinweis="eigene Stimme" if s.art == "eigen" else "Katalog")
-                    for s in stimmen]
-        return Angebot(optionen=optionen, eigener_wert=False, stand=stand or f"{len(optionen)} Stimmen")
+        optionen = [Option(wert="", titel=VORGABE_TITEL, hinweis="die Stimme ab Werk des Sprechdienstes")]
+        optionen += [Option(wert=s.name, titel=s.titel, hinweis="eigene Stimme" if s.art == "eigen" else "Katalog")
+                     for s in stimmen]
+        return Angebot(optionen=optionen, eigener_wert=False, stand=stand or f"{len(stimmen)} Stimmen")
 
     return anbieter
 

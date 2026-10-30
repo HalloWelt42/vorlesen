@@ -48,7 +48,7 @@ Auf dem Pi läuft sie als Compose-Projekt aus `compose.pi.yml` hinter ihrem Vors
 
 Zwei Wege. Aus der Sicherung: die jüngste Kopie von `vorlesen.sqlite` zurückspielen; dann sind Schlüssel, Stimme,
 Tempo und Verlauf wie vorher. Frisch: leere Datenbank, erste Einrichtung mit neuem App-Schlüssel, Leitstelle unter
-Einstellungen; Stimme und Tempo gelten ab Werk (Deutsch, Serena, Tempo 1).
+Einstellungen; Stimme und Tempo gelten ab Werk (Deutsch, Vorgabe des Sprechdienstes, Tempo 1).
 
 ### 1. Repo und Entwicklungsumgebung am Mac
 

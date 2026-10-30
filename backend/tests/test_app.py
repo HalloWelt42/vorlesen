@@ -162,7 +162,7 @@ async def test_vorlesen_satz_fuer_satz(umgebung):
     assert z[0]["dauer_ms"] == 1300 and base64.b64decode(z[0]["ton"])[:4] == b"RIFF"
     assert z[3] == {"art": "ende", "saetze": 3, "dauer_ms": sum(x["dauer_ms"] for x in z[:3])}
     # Stimme, Sprache und Tempo aus den Einstellungen; eine Arbeit für alle Sätze, nur über die Leitstelle
-    assert {(g["voice"], g["language"], g["speed"]) for g in welt.gesprochen} == {("serena", "german", 1.0)}
+    assert {(g.get("voice"), g["language"], g["speed"]) for g in welt.gesprochen} == {(None, "german", 1.0)}   # Vorgabe des Dienstes
     arbeiten = {k.get("x-leitstelle-arbeit") for k in welt.koepfe if k.get("x-leitstelle-arbeit")}
     assert len(arbeiten) == 1
     v = await verlauf_abwarten(c, h, 1)
@@ -181,12 +181,14 @@ async def test_stimme_tempo_einstellungen_und_probe(umgebung):
     # Probehören mit einer anderen Katalogstimme; was nicht im Katalog steht, gibt es nicht
     await c.post("/api/v1/vorlesen/strom", headers=h, json={"text": "Zwei.", "stimme": "uncle_fu", "tempo": 0.8})
     assert (welt.gesprochen[-1]["voice"], welt.gesprochen[-1]["speed"]) == ("uncle_fu", 0.8)
-    r = await c.post("/api/v1/vorlesen/strom", headers=h, json={"text": "Drei.", "stimme": "zeit_stimme"})
+    await c.post("/api/v1/vorlesen/strom", headers=h, json={"text": "Vier.", "stimme": ""})     # leer: Vorgabe des Dienstes
+    assert "voice" not in welt.gesprochen[-1]
+    r = await c.post("/api/v1/vorlesen/strom", headers=h, json={"text": "Drei.", "stimme": "unbekannt"})
     assert r.status_code == 400 and "nicht im Katalog" in r.json()["detail"]
     stimmen = (await c.get("/api/v1/stimmen", headers=h)).json()
     assert [s["titel"] for s in stimmen["stimmen"]] == ["Aiden", "Serena", "Uncle Fu"] and stimmen["sprachen"]["german"] == "Deutsch"
     angebot = (await c.get("/api/v1/einstellungen/angebot/stimme", headers=h)).json()
-    assert [o["wert"] for o in angebot["optionen"]] == ["aiden", "serena", "uncle_fu"] and not angebot["eigener_wert"]
+    assert [o["wert"] for o in angebot["optionen"]] == ["", "aiden", "serena", "uncle_fu"] and not angebot["eigener_wert"]
     assert welt.katalog_rufe == 1                                   # der Katalog wird eine Weile gemerkt
 
 

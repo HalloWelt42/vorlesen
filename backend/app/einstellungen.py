@@ -34,9 +34,11 @@ class AppEinstellungen(Grundeinstellungen):
     dienst_klonen: str = Field("klangwerk-klonen", title="Klondienst", json_schema_extra=SPRECHEN,
                                description="Dienst der Leitstelle, der mit einer eigenen Stimme spricht (Fähigkeit "
                                            "stimme_klonen); er bekommt die Probe der Stimme mit jedem Satz.")
-    stimme: str = Field("serena", title="Stimme", json_schema_extra=SPRECHEN,
-                        description="Eine feste Stimme aus dem Katalog des Sprechdienstes oder eine eigene Stimme, die "
-                                    "die Vertonung für Vorlesen freigibt. Gesammelte fremde Stimmen gibt es hier nicht.")
+    stimme: str = Field("", title="Stimme", json_schema_extra=SPRECHEN,
+                        description="Vorgabe für alle Apps, die keine eigene Vorlesestimme wählen: eine feste Stimme aus "
+                                    "dem Katalog des Sprechdienstes oder eine eigene Stimme, die die Vertonung für "
+                                    "Vorlesen freigibt. Leer: die Vorgabe des Sprechdienstes. Gesammelte fremde Stimmen "
+                                    "gibt es hier nicht.")
     sprache: Sprache = Field("german", title="Sprache", json_schema_extra={**SPRECHEN, "beschriftungen": SPRACHEN},
                              description="In dieser Sprache spricht die Stimme; die Texte sollten in ihr geschrieben sein.")
     tempo: float = Field(1.0, ge=0.5, le=2.0, title="Tempo", json_schema_extra={**SPRECHEN, "schritt": 0.05},

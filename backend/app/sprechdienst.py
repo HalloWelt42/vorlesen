@@ -82,7 +82,8 @@ class Sprechdienst:
         try:
             antwort = await self._leitstelle().dienst(self._dienst()).anfrage(
                 "POST", "/v1/audio/speech", titel="Vorlesen", prioritaet="hoch",
-                json={"input": text, "voice": stimme, "language": sprache, "speed": tempo, "response_format": "wav"})
+                json={"input": text, "language": sprache, "speed": tempo, "response_format": "wav",
+                      **({"voice": stimme} if stimme else {})})                 # leer: die Vorgabe des Dienstes
         finally:
             LAUFENDE_ARBEIT.reset(marke)
         return antwort.content

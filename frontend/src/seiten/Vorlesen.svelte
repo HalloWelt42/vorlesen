@@ -1,6 +1,7 @@
 <script lang="ts">
-  // Vorlesen: Stimme, Sprache und Tempo für alle Apps wählen (dieselben Felder wie unter Einstellungen, Sprechen) und
-  // eine Probe hören, bevor gespeichert wird: die Probe spricht mit dem, was gerade gewählt ist. Gespielt wird mit dem
+  // Vorlesen: oben gleich die Probe (HELF-67, Nutzer: "damit man selber gleich schneller testen kann"), darunter Stimme,
+  // Sprache und Tempo als Vorgabe für alle Apps ohne eigene Vorlesestimme (dieselben Felder wie unter Einstellungen,
+  // Sprechen). Die Probe spricht mit dem, was gerade gewählt ist, auch ungespeichert. Gespielt wird mit dem
   // Vorleser des Appkerns (Satz für Satz, mit Vorlauf); der laufende Satz steht unter dem Text.
   import { Auswahl, einstellungen, einstellungenLaden, einstellungenSpeichern, einstellungenVerwerfen, einstellungSetzen,
            einstellungsWert, hole, seitenFehler, VorleseKnopf, vorleser } from "appkern-oberflaeche";
@@ -22,7 +23,8 @@
   const stimme = $derived(String(einstellungsWert("stimme") ?? ""));
   const sprache = $derived(String(einstellungsWert("sprache") ?? "german"));
   const tempo = $derived(Number(einstellungsWert("tempo") ?? 1));
-  const stimmen = $derived((katalog?.stimmen ?? []).map((s) => ({ wert: s.name, titel: s.titel, hinweis: s.art === "eigen" ? "eigene Stimme" : "Katalog" })));
+  const stimmen = $derived([{ wert: "", titel: "Vorgabe des Sprechdienstes", hinweis: "die Stimme ab Werk" },
+    ...(katalog?.stimmen ?? []).map((s) => ({ wert: s.name, titel: s.titel, hinweis: s.art === "eigen" ? "eigene Stimme" : "Katalog" }))]);
   const sprachen = $derived(Object.entries(katalog?.sprachen ?? {}).map(([wert, titel]) => ({ wert, titel })));
   const offen = $derived(FELDER.filter((n) => n in einstellungen.entwurf).length);
   /** Die Probe spricht mit der Wahl, wie sie gerade auf der Seite steht (auch ungespeichert) */
@@ -42,8 +44,25 @@
 <div class="seiten-kopf"><h1>Vorlesen</h1></div>
 <div class="rollfeld">
   <div class="karte">
+    <h2><i class="fa-solid fa-headphones"></i>Probe</h2>
+    <p class="karte-unter">Ein eigener Text oder der Beispielsatz, mit der Stimme, die unten gewählt ist; ein zweites Tippen hält an.</p>
+    <textarea class="vl-text" rows="3" bind:value={text} aria-label="Text für die Probe"></textarea>
+    <div class="knopfzeile vl-probe">
+      <VorleseKnopf kennung="probe" text={() => text} pfad="/vorlesen/strom" daten={probe} immer beschriftung="Probe vorlesen"
+                    titel="Den Text mit der gewählten Stimme vorlesen" />
+      {#if text !== BEISPIEL}<button class="knopf ohne" onclick={() => (text = BEISPIEL)}>Beispiel</button>{/if}
+    </div>
+    {#if liest}
+      <p class="vl-satz" aria-live="polite">
+        {#if vorleser.wartet}<i class="fa-solid fa-hourglass-half"></i>Der erste Satz wird gesprochen ...
+        {:else if vorleser.satz}<i class="fa-solid fa-volume-high"></i>{vorleser.satz.text}{/if}
+      </p>
+    {/if}
+    {#if vorleser.fehler && !liest}<div class="fehlertext">{vorleser.fehler}</div>{/if}
+  </div>
+  <div class="karte">
     <h2><i class="fa-solid fa-sliders"></i>Stimme und Tempo</h2>
-    <p class="karte-unter">So klingt das Vorlesen in allen Apps, die Vorlesen nutzen. Zur Wahl stehen die festen
+    <p class="karte-unter">So klingt das Vorlesen in allen Apps, die keine eigene Vorlesestimme gewählt haben. Zur Wahl stehen die festen
       Stimmen des Sprechdienstes und die eigenen, die die Vertonung für Vorlesen freigibt.</p>
     {#if fehler}<div class="fehlertext">{fehler}</div>{/if}
     <div class="feld">
@@ -74,27 +93,10 @@
     {#if meldung}<p class="karte-unter" role="status">{meldung}</p>{/if}
   </div>
 
-  <div class="karte">
-    <h2><i class="fa-solid fa-headphones"></i>Probe</h2>
-    <p class="karte-unter">Ein eigener Text oder der Beispielsatz; ein zweites Tippen hält an.</p>
-    <textarea class="vl-text" rows="5" bind:value={text} aria-label="Text für die Probe"></textarea>
-    <div class="knopfzeile vl-probe">
-      <VorleseKnopf kennung="probe" text={() => text} pfad="/vorlesen/strom" daten={probe} immer beschriftung="Probe vorlesen"
-                    titel="Den Text mit der gewählten Stimme vorlesen" />
-      {#if text !== BEISPIEL}<button class="knopf ohne" onclick={() => (text = BEISPIEL)}>Beispiel</button>{/if}
-    </div>
-    {#if liest}
-      <p class="vl-satz" aria-live="polite">
-        {#if vorleser.wartet}<i class="fa-solid fa-hourglass-half"></i>Der erste Satz wird gesprochen ...
-        {:else if vorleser.satz}<i class="fa-solid fa-volume-high"></i>{vorleser.satz.text}{/if}
-      </p>
-    {/if}
-    {#if vorleser.fehler && !liest}<div class="fehlertext">{vorleser.fehler}</div>{/if}
-  </div>
 </div>
 
 <style>
-  .vl-text { width: 100%; min-height: 120px; padding: 10px 12px; border-radius: var(--r2); border: 1px solid var(--rand);
+  .vl-text { width: 100%; min-height: 96px; padding: 10px 12px; border-radius: var(--r2); border: 1px solid var(--rand);
              background: var(--flaeche); color: var(--text); font: inherit; line-height: 1.5; resize: vertical; }
   .vl-text:focus { outline: none; border-color: var(--akzent); box-shadow: 0 0 0 3px var(--akzent-weich); }
   .vl-probe { margin: 10px 0 14px; }

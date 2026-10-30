@@ -64,9 +64,13 @@ def wer(konto: Konto) -> tuple[str, str | None]:
     return konto.name, None
 
 
+#: so heißt die leere Wahl: der Sprechdienst nimmt seine eigene Vorgabe
+VORGABE_TITEL = "Vorgabe des Sprechdienstes"
+
+
 def stimmtitel(name: str) -> str:
-    """Name einer festen Stimme zum Lesen: uncle_fu wird Uncle Fu."""
-    return " ".join(t.capitalize() for t in name.split("_"))
+    """Name einer festen Stimme zum Lesen (aus dem Katalog: Unterstrich wird Leerzeichen, Wörter groß)."""
+    return " ".join(t.capitalize() for t in name.split("_")) if name else VORGABE_TITEL
 
 
 def grund(f: LeitstellenFehler) -> str:
@@ -109,7 +113,7 @@ class Vorleser:
         teile = zerlegen(a.text)
         if not teile:
             raise Abgelehnt("Es gibt nichts vorzulesen")
-        stimme = a.stimme or e.stimme
+        stimme = e.stimme if a.stimme is None else a.stimme
         sprache, tempo = a.sprache or e.sprache, a.tempo or e.tempo
         if stimme.startswith(PRIVAT):
             try:
