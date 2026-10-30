@@ -52,7 +52,7 @@
     const teile = [wann(v.beginn), v.app && v.app !== v.wer ? `${v.wer} über ${v.app}` : v.wer,
       `${v.saetze} ${v.saetze === 1 ? "Satz" : "Sätze"}`, `Ton ${sekunden(v.ton_ms)}`];
     if (v.erster_ms !== null) teile.push(`erster Ton nach ${sekunden(v.erster_ms)}`);
-    teile.push(`${v.stimme[0]?.toUpperCase() ?? ""}${v.stimme.slice(1)}, Tempo ${v.tempo.toFixed(2).replace(".", ",")}`);
+    teile.push(`${v.stimme}, Tempo ${v.tempo.toFixed(2).replace(".", ",")}`);
     return teile.join(" · ");
   }
 

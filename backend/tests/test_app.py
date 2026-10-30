@@ -15,6 +15,9 @@ import pytest
 from app.main import app_bauen
 
 DIENST = "/v1/dienste/klangwerk-sprechen"
+KLONEN = "/v1/dienste/klangwerk-klonen"
+EIGENE = "11111111-2222-3333-4444-555555555555"      # die Vertonung gibt sie Vorlesen frei
+GESPERRT = "99999999-2222-3333-4444-555555555555"    # private Stimme, nicht freigegeben
 
 
 def wav(dauer_s: float, rate: int = 24000) -> bytes:
@@ -34,6 +37,8 @@ class Welt:
         self.gesprochen: list[dict] = []
         self.koepfe: list[httpx.Headers] = []
         self.katalog_rufe = 0
+        self.geklont: list[dict] = []
+        self.proben_rufe = 0
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         pfad = request.url.path
@@ -41,6 +46,8 @@ class Welt:
             return self.kellerwolke(request, pfad)
         if request.url.host == "ls.test":
             return self.leitstelle(request, pfad)
+        if request.url.host == "vt.test":
+            return self.vertonung(request, pfad)
         return httpx.Response(404, json={"detail": "nicht da"})
 
     @staticmethod
@@ -74,12 +81,39 @@ class Welt:
         if pfad == f"{DIENST}/tts/voices":
             self.katalog_rufe += 1
             return httpx.Response(200, json={"speakers": ["serena", "aiden", "uncle_fu"], "languages": ["german", "english"]})
+        if pfad == f"{KLONEN}/tts/clone":
+            inhalt = request.content.decode("latin-1")
+            self.geklont.append({"modus": "icl" if 'name="modus"\r\n\r\nicl' in inhalt else "abdruck",
+                                 "probe": "PROBE-WAV" in inhalt})
+            return httpx.Response(200, json={"filename": "klon_1.wav", "duration": 1.0})
+        if pfad == f"{KLONEN}/tts/audio/klon_1.wav":
+            return httpx.Response(200, content=wav(1.0), headers={"content-type": "audio/wav"})
         if pfad == f"{DIENST}/v1/audio/speech":
             koerper = json.loads(request.content)
             if "Kaputt" in koerper["input"]:
                 return httpx.Response(503, json={"error": {"code": "dienst_weg", "message": "Dienst klangwerk-sprechen startet"}})
             self.gesprochen.append(koerper)
             return httpx.Response(200, content=wav(0.05 * len(koerper["input"])), headers={"content-type": "audio/wav"})
+        return httpx.Response(404, json={"detail": "nicht da"})
+
+
+    def vertonung(self, request: httpx.Request, pfad: str) -> httpx.Response:
+        """Die Vertonung, so weit Vorlesen sie fragt: nur die freigegebene eigene Stimme, mit Probe und Text."""
+        if pfad == "/api/v1/app":
+            return httpx.Response(200, json={"fassung": "0.20.0"})
+        if request.headers.get("authorization") != "Bearer kw_app_x":
+            return httpx.Response(401, json={"detail": "Anmeldung fehlt"})
+        if pfad == "/api/v1/stimmen" and request.url.params.get("bereich") == "privat":
+            return httpx.Response(200, json=[{"id": EIGENE, "name": "Meine Stimme", "bereich": "privat"}])
+        if pfad == f"/api/v1/stimmen/{EIGENE}":
+            return httpx.Response(200, json={"id": EIGENE, "name": "Meine Stimme", "bereich": "privat",
+                                             "angaben": {"name": "Meine Stimme", "bereich": "privat", "sprache": "de",
+                                                         "referenztext": "Das ist meine Probe."}})
+        if pfad == f"/api/v1/inhalt/stimmen/{EIGENE}/probe":
+            self.proben_rufe += 1
+            return httpx.Response(200, content=b"RIFF-PROBE-WAV", headers={"content-type": "audio/wav"})
+        if GESPERRT in pfad:
+            return httpx.Response(403, json={"detail": "Private Stimmen sind dieser App nicht erlaubt"})
         return httpx.Response(404, json={"detail": "nicht da"})
 
 
@@ -187,3 +221,31 @@ async def test_ohne_leitstelle(umgebung):
     h = {"X-Kellerwolke-Sitzung": (await c.post("/api/v1/anmeldung", json={"kennung": "probe", "passwort": "geheim"})).json()["token"]}
     r = await c.post("/api/v1/vorlesen/strom", headers=h, json={"text": "Hallo."})
     assert r.status_code == 503 and "Leitstelle" in r.json()["detail"]
+
+
+async def test_eigene_stimme_ueber_die_vertonung(umgebung):
+    app, welt, c = umgebung
+    h = await einrichten(c, app)
+    # ohne Vertonung nur der Katalog
+    assert all(s["art"] == "katalog" for s in (await c.get("/api/v1/stimmen", headers=h)).json()["stimmen"])
+    await app.state.geruest.einstellungen.aendern({"vertonung_adresse": "http://vt.test"})
+    stimmen = (await c.get("/api/v1/stimmen", headers=h)).json()["stimmen"]
+    assert {"name": f"privat:{EIGENE}", "titel": "Meine Stimme", "art": "eigen"} in stimmen
+    angebot = (await c.get("/api/v1/einstellungen/angebot/stimme", headers=h)).json()
+    assert f"privat:{EIGENE}" in [o["wert"] for o in angebot["optionen"]]
+    r = await c.patch("/api/v1/einstellungen", headers=h, json={"werte": {"stimme": f"privat:{EIGENE}"}})
+    assert r.status_code == 200
+    for text in ("Eins. Zwei.", "Drei."):
+        z = zeilen(await c.post("/api/v1/vorlesen/strom", headers=h, json={"text": text}))
+        assert z[-1]["art"] == "ende"
+    # gesprochen hat der Klondienst mit Probe und Text (deutsch: icl); die Probe kam einmal für alle Sätze
+    assert len(welt.geklont) == 3 and all(g["probe"] and g["modus"] == "icl" for g in welt.geklont)
+    assert welt.proben_rufe == 1 and welt.gesprochen == []
+    # englisch gesprochen: nur der Abdruck
+    await c.post("/api/v1/vorlesen/strom", headers=h, json={"text": "Hello.", "sprache": "english"})
+    assert welt.geklont[-1]["modus"] == "abdruck"
+    # nicht freigegeben: abgelehnt, bevor etwas spricht
+    r = await c.post("/api/v1/vorlesen/strom", headers=h, json={"text": "Hallo.", "stimme": f"privat:{GESPERRT}"})
+    assert r.status_code == 403 and "nicht frei" in r.json()["detail"]
+    v = await verlauf_abwarten(c, h, 3)
+    assert v["eintraege"][0]["stimme"] == "Meine Stimme"

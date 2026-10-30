@@ -1,7 +1,8 @@
-"""Der Sprechdienst des Klangwerks, erreicht nur über die Leitstelle (`/v1/dienste/<dienst>/...`): `POST
-/v1/audio/speech` spricht einen Satz und liefert WAV (PCM 16 Bit, mono), `GET /tts/voices` nennt den Katalog fester
-Stimmen. Das Modell bleibt dort; diese App wählt nur Dienst, Stimme, Sprache und Tempo. Klonstimmen sind auf diesem Weg
-nicht erreichbar (der Dienst kennt nur seinen Katalog)."""
+"""Die Sprechdienste des Klangwerks, erreicht nur über die Leitstelle (`/v1/dienste/<dienst>/...`). Feste Stimmen:
+`POST /v1/audio/speech` beim Sprechdienst spricht einen Satz und liefert WAV (PCM 16 Bit, mono), `GET /tts/voices` nennt
+den Katalog. Eigene Stimmen: `POST /tts/clone` beim Klondienst mit der Probe der Stimme (aus der Vertonung, siehe
+stimmen.py), die Datei holt man bei derselben Instanz ab. Die Modelle bleiben dort; diese App wählt nur Dienst, Stimme,
+Sprache und Tempo."""
 
 from __future__ import annotations
 
@@ -13,8 +14,20 @@ from collections.abc import Callable
 from appkern.leitstelle import Leitstelle, LeitstellenFehler
 from appkern.leitstelle.arbeit import LAUFENDE_ARBEIT
 
+from .stimmen import Referenz
+
 #: so lange gilt der geholte Katalog
 KATALOG_GILT_S = 600
+#: Sprachen des Modells in der Kurzform der Vertonung (Sprache einer Probe)
+KURZ = {"german": "de", "english": "en", "french": "fr", "spanish": "es", "italian": "it", "portuguese": "pt",
+        "russian": "ru", "japanese": "ja", "korean": "ko", "chinese": "zh"}
+
+
+def modus(referenz: Referenz, sprache: str) -> str:
+    """Wie eine eigene Stimme spricht: mit Referenztext (icl) übernimmt das Modell Klang und Sprechweise der Probe;
+    spricht sie eine andere Sprache als ihre Probe, brächte das deren Akzent mit, dann nur der Stimmabdruck (wie die
+    Vertonung, Messung K1 18.10.2026). Ohne Referenztext bleibt nur der Abdruck."""
+    return "icl" if referenz.text.strip() and KURZ.get(sprache, sprache) == referenz.sprache else "abdruck"
 
 
 class KeineLeitstelle(LeitstellenFehler):
@@ -34,9 +47,10 @@ def dauer_ms(wav: bytes) -> int:
 
 class Sprechdienst:
     def __init__(self, leitstelle: Callable[[], Leitstelle | None], dienst: Callable[[], str],
-                 uhr: Callable[[], float] = time.monotonic) -> None:
+                 klondienst: Callable[[], str] = lambda: "klangwerk-klonen", uhr: Callable[[], float] = time.monotonic) -> None:
         self._ls = leitstelle
         self._dienst = dienst
+        self._klondienst = klondienst
         self._uhr = uhr
         self._katalog: tuple[float, str, list[str], list[str]] | None = None
 
@@ -72,3 +86,19 @@ class Sprechdienst:
         finally:
             LAUFENDE_ARBEIT.reset(marke)
         return antwort.content
+
+    async def klonen(self, text: str, *, referenz: Referenz, sprache: str, tempo: float, arbeit: str) -> bytes:
+        """Ein Stück Text mit einer eigenen Stimme als WAV; die Probe geht mit (aus dem Zwischenspeicher)."""
+        marke = LAUFENDE_ARBEIT.set(arbeit)
+        try:
+            dienst = self._leitstelle().dienst(self._klondienst())
+            async with dienst.gebunden():         # die Datei liegt bei der Instanz, die gesprochen hat
+                antwort = await dienst.json(
+                    "POST", "/tts/clone", titel="Vorlesen", prioritaet="hoch",
+                    data={"text": text, "ref_text": referenz.text, "language": sprache, "speed": str(tempo),
+                          "modus": modus(referenz, sprache)},
+                    files={"ref_audio": ("referenz.wav", referenz.ton, "audio/wav")})
+                datei = (await dienst.anfrage("GET", f"/tts/audio/{antwort['filename']}", titel="Vorlesen")).content
+        finally:
+            LAUFENDE_ARBEIT.reset(marke)
+        return datei

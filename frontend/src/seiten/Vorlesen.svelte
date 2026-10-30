@@ -5,7 +5,7 @@
   import { Auswahl, einstellungen, einstellungenLaden, einstellungenSpeichern, einstellungenVerwerfen, einstellungSetzen,
            einstellungsWert, hole, seitenFehler, VorleseKnopf, vorleser } from "appkern-oberflaeche";
 
-  interface Stimmen { stimmen: { name: string; titel: string }[]; sprachen: Record<string, string>; stand: string }
+  interface Stimmen { stimmen: { name: string; titel: string; art: "katalog" | "eigen" }[]; sprachen: Record<string, string>; stand: string }
 
   const FELDER = ["stimme", "sprache", "tempo"];
   const BEISPIEL = "Guten Tag. Hier spricht die App Vorlesen. Jeder Satz kommt einzeln an, darum beginnt der Ton sofort. "
@@ -22,7 +22,7 @@
   const stimme = $derived(String(einstellungsWert("stimme") ?? ""));
   const sprache = $derived(String(einstellungsWert("sprache") ?? "german"));
   const tempo = $derived(Number(einstellungsWert("tempo") ?? 1));
-  const stimmen = $derived((katalog?.stimmen ?? []).map((s) => ({ wert: s.name, titel: s.titel })));
+  const stimmen = $derived((katalog?.stimmen ?? []).map((s) => ({ wert: s.name, titel: s.titel, hinweis: s.art === "eigen" ? "eigene Stimme" : "Katalog" })));
   const sprachen = $derived(Object.entries(katalog?.sprachen ?? {}).map(([wert, titel]) => ({ wert, titel })));
   const offen = $derived(FELDER.filter((n) => n in einstellungen.entwurf).length);
   /** Die Probe spricht mit der Wahl, wie sie gerade auf der Seite steht (auch ungespeichert) */
@@ -43,12 +43,12 @@
 <div class="rollfeld">
   <div class="karte">
     <h2><i class="fa-solid fa-sliders"></i>Stimme und Tempo</h2>
-    <p class="karte-unter">So klingt das Vorlesen in allen Apps, die Vorlesen nutzen. Zur Wahl stehen nur die festen
-      Stimmen des Sprechdienstes.</p>
+    <p class="karte-unter">So klingt das Vorlesen in allen Apps, die Vorlesen nutzen. Zur Wahl stehen die festen
+      Stimmen des Sprechdienstes und die eigenen, die die Vertonung für Vorlesen freigibt.</p>
     {#if fehler}<div class="fehlertext">{fehler}</div>{/if}
     <div class="feld">
       <div class="was"><div class="name">Stimme</div>
-        <div class="beschreibung">{katalog?.stand || "Feste Stimme aus dem Katalog des Sprechdienstes."}</div></div>
+        <div class="beschreibung">{katalog?.stand || "Feste Stimme aus dem Katalog oder freigegebene eigene Stimme."}</div></div>
       <Auswahl wert={stimme} optionen={stimmen} symbol="fa-user" titel="Stimme wählen" onwahl={(w) => einstellungSetzen("stimme", w)} />
     </div>
     <div class="feld">

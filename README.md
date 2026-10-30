@@ -4,7 +4,9 @@ Vorlesen liest Text vor, Satz für Satz: die eine Stelle für Sprachausgabe der 
 Vorlesen teilt ihn an Satzgrenzen und liefert den Ton Satz für Satz als Strom, damit die Wiedergabe sofort beginnt.
 Gesprochen wird nur vom Sprechdienst des [Klangwerks](https://github.com/HalloWelt42/klangwerk) über die
 [Leitstelle](https://github.com/HalloWelt42/leitstelle); das Modell bleibt dort isoliert. Stimme, Sprache und Tempo
-wählt man hier, für alle Apps; zur Wahl stehen nur die festen Stimmen aus dem Katalog des Sprechdienstes.
+wählt man hier, für alle Apps: feste Stimmen aus dem Katalog des Sprechdienstes oder eigene Stimmen, die die
+[Vertonung](https://github.com/HalloWelt42/vertonung) für Vorlesen freigibt (gesprochen vom Klondienst des Klangwerks; die
+Probe einer Stimme wird einmal geholt und eine halbe Stunde vorgehalten).
 
 Eine App auf dem [Appkern](https://github.com/HalloWelt42/appkern): Anmeldung mit dem Kellerwolke-Konto, KI nur über
 die Leitstelle, gestartet vom Stellwerk oder als Container.
@@ -14,7 +16,7 @@ die Leitstelle, gestartet vom Stellwerk oder als Container.
 | Weg | Was |
 |---|---|
 | `POST /api/v1/vorlesen/strom` | `{"text": ...}` (bis 100.000 Zeichen); Antwort NDJSON, je Zeile `satz` (`nr`, `text`, `von_zeichen`, `bis_zeichen`, `dauer_ms`, `ton` als Base64-WAV), am Ende `ende`, bei einem Abbruch mittendrin `fehler`. Was vor dem ersten Satz scheitert, ist eine Antwort mit Grund. Bricht der Leser ab, wird nichts mehr gesprochen |
-| `GET /api/v1/stimmen` | Katalog des Sprechdienstes und die Sprachen |
+| `GET /api/v1/stimmen` | Katalog des Sprechdienstes, freigegebene eigene Stimmen (`privat:<Kennung>`) und die Sprachen |
 | `GET /api/v1/verlauf` | laufende und die jüngsten Vorlesungen (`ab`, `anzahl`) |
 
 Apps rufen Vorlesen nicht von Hand, sondern über den Baustein `appkern.vorlesen` (Feld `vorlesen_adresse`, Weg
@@ -61,7 +63,8 @@ gleicher Appkern in Oberfläche und Backend, Fassungen, HTTP/2, deckende Symbole
 | `backend/app/main.py` | baut die App auf dem Gerüst |
 | `backend/app/einstellungen.py` | eigene Einstellungen (dazu kommen Kellerwolke, Leitstelle, Konten) |
 | `backend/app/vorlesen.py` | Text teilen, Satz für Satz sprechen lassen, Strom und Verlauf |
-| `backend/app/sprechdienst.py` | Sprechdienst über die Leitstelle (Sprechen, Katalog) |
+| `backend/app/sprechdienst.py` | Sprech- und Klondienst über die Leitstelle |
+| `backend/app/stimmen.py` | eigene Stimmen aus der Vertonung, Probe im Zwischenspeicher |
 | `backend/app/verlauf.py` | Verlauf der Vorlesungen |
 | `backend/app/modell.py` | Verträge (Anfrage, Zeilen des Stroms, Verlauf, Stimmen) |
 | `backend/app/api.py` | Endpunkte |

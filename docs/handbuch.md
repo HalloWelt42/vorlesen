@@ -24,8 +24,10 @@ den Ton Satz für Satz als Strom; die Wiedergabe beginnt nach dem ersten Satz. G
 des [[Klangwerk]] über die [[Leitstelle]]: das Modell bleibt dort isoliert und wird in keine App eingebaut.
 
 Stimme, Sprache und Tempo wählt man hier (Seite Vorlesen, mit Probe vor dem Speichern); sie gelten für alle Apps. Zur
-Wahl stehen nur die festen Stimmen aus dem Katalog des Sprechdienstes, geklonte Stimmen sind auf diesem Weg nicht
-erreichbar. Der Verlauf zeigt, was gerade und zuletzt vorgelesen wurde, von wem und wie es ausging. Kunden sind etwa
+Wahl stehen die festen Stimmen aus dem Katalog des Sprechdienstes und die eigenen Stimmen aus der Kellerwolke, die die
+[[Vertonung]] für Vorlesen freigibt (dieselbe Quelle und Erlaubnisliste wie für Vertonung und [[TubeVault]]); mit
+ihnen spricht der Klondienst des [[Klangwerk]], die Probe der Stimme holt Vorlesen einmal und hält sie eine halbe Stunde
+vor. Gesammelte fremde Stimmen gibt es hier nie. Der Verlauf zeigt, was gerade und zuletzt vorgelesen wurde, von wem und wie es ausging. Kunden sind etwa
 die [[Pinnwand]] (Beschreibung, Kommentare, Tagesplan, Berichte); die [[Vertonung]] bleibt für Videos und lange Werke.
 
 Auf dem Pi läuft sie als Compose-Projekt aus `compose.pi.yml` hinter ihrem Vorschaltdienst `vorne`. Adresse:
@@ -36,8 +38,11 @@ Auf dem Pi läuft sie als Compose-Projekt aus `compose.pi.yml` hinter ihrem Vors
 - Pi nach [[Grundlage Pi]] mit Docker; Mac nach [[Grundlage Mac]] für Entwicklung, Ausrollen und Hausstelle.
 - [[Kellerwolke]]: Konto zum Anmelden und ein App-Schlüssel für Vorlesen. Apps, die vorlesen lassen, melden sich mit
   ihrem eigenen App-Schlüssel desselben Kontos an.
-- [[Leitstelle]]: Anwendung "Vorlesen" mit der Fähigkeit stimme.
-- [[Klangwerk]] am Mac mit dem Dienst sprechen (über den [[Maschinenraum]]).
+- [[Leitstelle]]: Anwendung "Vorlesen" mit den Fähigkeiten stimme und stimme_klonen.
+- [[Klangwerk]] am Mac mit den Diensten sprechen und klonen (über den [[Maschinenraum]]).
+- Für eigene Stimmen die [[Vertonung]]: ihre Adresse über die Umgebung, in der Vertonung unter Einstellungen, Stimmen,
+  "Private Stimmen für" ein Eintrag `vorlesen:<Kennung der Stimme>` je freigegebener Stimme (`vorlesen` allein gäbe
+  alle privaten frei, auch Stimmen von Freunden; nicht so). Ohne Vertonung spricht Vorlesen nur mit Katalogstimmen.
 
 ## Neu einrichten
 
@@ -82,9 +87,10 @@ Probe: `/api/v1/app` meldet `"einrichtung_noetig": false` und den Besitzer.
 
 ### 5. Leitstelle und Stimme
 
-Frisch: in der [[Leitstelle]] die Anwendung "Vorlesen" mit der Fähigkeit stimme anlegen und ihren Schlüssel als
+Frisch: in der [[Leitstelle]] die Anwendung "Vorlesen" mit den Fähigkeiten stimme und stimme_klonen anlegen und ihren Schlüssel als
 `VORLESEN_LEITSTELLE_SCHLUESSEL` in `{{wurzel}}/.env` (Modus 0600) schreiben, dazu `VORLESEN_LEITSTELLE_ADRESSE` mit
-{{umgebung:VORLESEN_LEITSTELLE_ADRESSE}}; dann `docker compose -f compose.pi.yml up -d vorlesen`. Aus der Sicherung
+{{umgebung:VORLESEN_LEITSTELLE_ADRESSE}} und `VORLESEN_VERTONUNG_ADRESSE` mit
+{{umgebung:VORLESEN_VERTONUNG_ADRESSE}}; dann `docker compose -f compose.pi.yml up -d vorlesen`. Aus der Sicherung
 gilt dasselbe, die .env gehört nicht zur Sicherung der Datenbank. Unter Vorlesen Stimme, Sprache und Tempo wählen und eine Probe hören.
 
 Probe: in der Fußleiste sind Kellerwolke und Leitstelle grün, und "Probe vorlesen" spricht hörbar; der Verlauf zeigt
@@ -117,5 +123,8 @@ vorlesen`. Probe wie in Schritt 3.
   Fußleiste rot (Fassung, Zertifikat, Schlüssel prüfen).
 - "Die App Vorlesen lässt das nicht zu": der App-Schlüssel der rufenden App gehört nicht dem Konto, dem Vorlesen
   gehört, und es steht nicht unter Zugang, Weitere Konten.
+- Eine eigene Stimme fehlt in der Auswahl oder "gibt die Vertonung für Vorlesen nicht frei": in der Vertonung unter
+  Einstellungen, Stimmen, "Private Stimmen für" fehlt `vorlesen:<Kennung>`; nach dem Eintragen gilt es spätestens nach
+  einer halben Stunde (so lange hält Vorlesen eine Probe vor), sofort nach einem Neustart.
 - Die Stimme fehlt in der Auswahl: der Katalog kommt vom Sprechdienst; antwortet er nicht, ist die Auswahl leer, die
   gespeicherte Stimme gilt trotzdem.

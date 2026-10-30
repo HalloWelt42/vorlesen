@@ -16,7 +16,8 @@ from .einstellungen import Sprache
 class Vorleseanfrage(BaseModel):
     text: str = Field(min_length=1, max_length=TEXT_HOECHSTENS)
     #: nur zum Probehören in der Oberfläche: ohne gelten Stimme, Sprache und Tempo aus den Einstellungen
-    stimme: str | None = Field(None, pattern=r"^[a-z][a-z_]{0,39}$")
+    stimme: str | None = Field(None, pattern=r"^([a-z][a-z_]{0,39}|privat:[0-9a-fA-F-]{36})$",
+                               description="feste Stimme aus dem Katalog oder privat:<Kennung> einer freigegebenen eigenen")
     sprache: Sprache | None = None
     tempo: float | None = Field(None, ge=0.5, le=2.0)
 
@@ -66,7 +67,7 @@ class Vorlesung(BaseModel):
     ton_ms: int = 0
     erster_ms: int | None = Field(None, description="Wartezeit bis zum ersten Satz")
     dauer_ms: int = 0
-    stimme: str
+    stimme: str = Field(description="Name der Stimme, wie man sie wählt")
     tempo: float
     zustand: Zustand = "laeuft"
     meldung: str = ""
@@ -79,8 +80,9 @@ class Verlauf(BaseModel):
 
 
 class Stimme(BaseModel):
-    name: str
+    name: str = Field(description="Wert für die Wahl: Name im Katalog oder privat:<Kennung>")
     titel: str
+    art: Literal["katalog", "eigen"] = "katalog"
 
 
 class Stimmen(BaseModel):

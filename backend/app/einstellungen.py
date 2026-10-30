@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import Field
 
 from appkern.app import Grundeinstellungen
+from appkern.app.einstellungen import VERBINDUNGEN
 
 SPRECHEN = {"gruppe": "Sprechen"}
 VERLAUF = {"gruppe": "Verlauf"}
@@ -15,17 +16,27 @@ VERLAUF = {"gruppe": "Verlauf"}
 SPRACHEN = {"german": "Deutsch", "english": "Englisch", "french": "Französisch", "spanish": "Spanisch",
             "italian": "Italienisch", "portuguese": "Portugiesisch", "russian": "Russisch", "japanese": "Japanisch",
             "korean": "Koreanisch", "chinese": "Chinesisch"}
+#: so beginnt der Wert einer eigenen Stimme (gespeichert in der Kellerwolke, verwaltet und freigegeben von der Vertonung)
+PRIVAT = "privat:"
+
 Sprache = Literal["german", "english", "french", "spanish", "italian", "portuguese", "russian", "japanese", "korean",
                   "chinese"]
 
 
 class AppEinstellungen(Grundeinstellungen):
+    vertonung_adresse: str = Field("", title="Eigene Stimmen", json_schema_extra=VERBINDUNGEN,
+                                   description="Adresse der Vertonung: dort liegen die eigenen Stimmen und wer sie nutzen "
+                                               "darf (Stimmen, Private Stimmen für, Eintrag vorlesen). Leer: nur "
+                                               "Katalogstimmen.")
     dienst_sprechen: str = Field("klangwerk-sprechen", title="Sprechdienst", json_schema_extra=SPRECHEN,
                                  description="Dienst der Leitstelle, der spricht (Fähigkeit stimme). Das Modell läuft "
                                              "dort, nie in dieser App.")
+    dienst_klonen: str = Field("klangwerk-klonen", title="Klondienst", json_schema_extra=SPRECHEN,
+                               description="Dienst der Leitstelle, der mit einer eigenen Stimme spricht (Fähigkeit "
+                                           "stimme_klonen); er bekommt die Probe der Stimme mit jedem Satz.")
     stimme: str = Field("serena", title="Stimme", json_schema_extra=SPRECHEN,
-                        description="Feste Stimme aus dem Katalog des Sprechdienstes. Geklonte Stimmen gibt es auf "
-                                    "diesem Weg nicht.")
+                        description="Eine feste Stimme aus dem Katalog des Sprechdienstes oder eine eigene Stimme, die "
+                                    "die Vertonung für Vorlesen freigibt. Gesammelte fremde Stimmen gibt es hier nicht.")
     sprache: Sprache = Field("german", title="Sprache", json_schema_extra={**SPRECHEN, "beschriftungen": SPRACHEN},
                              description="In dieser Sprache spricht die Stimme; die Texte sollten in ihr geschrieben sein.")
     tempo: float = Field(1.0, ge=0.5, le=2.0, title="Tempo", json_schema_extra={**SPRECHEN, "schritt": 0.05},

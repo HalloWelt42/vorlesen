@@ -1,4 +1,5 @@
-"""Vorlesen: Text an Satzgrenzen teilen (`appkern.saetze`), jeden Satz beim Sprechdienst sprechen lassen und als
+"""Vorlesen: Text an Satzgrenzen teilen (`appkern.saetze`), jeden Satz beim Sprechdienst (feste Stimme) oder beim
+Klondienst (eigene Stimme, Probe aus der Vertonung) sprechen lassen und als
 Zeile des Stroms liefern, sobald er da ist; so beginnt die Wiedergabe nach dem ersten Satz. Was vor dem ersten Satz
 scheitert, wird zu einer Antwort mit Grund (die Ausnahme geht hinaus); danach kommt eine Zeile `fehler`. Bricht der
 Leser ab, endet die Arbeit: es wird kein weiterer Satz bestellt. Jede Vorlesung steht im Verlauf."""
@@ -13,9 +14,12 @@ from appkern.anmeldung import Konto
 from appkern.leitstelle import LeitstellenFehler
 from appkern.saetze import hat_worte, saetze, stuecke
 
-from .einstellungen import AppEinstellungen
-from .modell import StromEnde, StromFehler, StromSatz, Vorleseanfrage
+from appkern.verbund import VerbundFehler
+
+from .einstellungen import PRIVAT, AppEinstellungen
+from .modell import Stimme, StromEnde, StromFehler, StromSatz, Vorleseanfrage
 from .sprechdienst import Sprechdienst, dauer_ms
+from .stimmen import NichtFreigegeben, Referenz, Stimmenquelle
 from .verlauf import Laufend, Verlaufsbuch
 
 
@@ -42,6 +46,8 @@ class Auftrag:
     stimme: str
     sprache: str
     tempo: float
+    titel: str                          # wie die Stimme heißt (für den Verlauf)
+    referenz: Referenz | None = None    # bei einer eigenen Stimme ihre Probe
 
 
 def zerlegen(text: str) -> list[Stueck]:
@@ -58,6 +64,11 @@ def wer(konto: Konto) -> tuple[str, str | None]:
     return konto.name, None
 
 
+def stimmtitel(name: str) -> str:
+    """Name einer festen Stimme zum Lesen: uncle_fu wird Uncle Fu."""
+    return " ".join(t.capitalize() for t in name.split("_"))
+
+
 def grund(f: LeitstellenFehler) -> str:
     return f"Der Sprechdienst kann gerade nicht: {f.meldung}"
 
@@ -67,19 +78,47 @@ def zeile(z: StromSatz | StromEnde | StromFehler) -> bytes:
 
 
 class Vorleser:
-    def __init__(self, sprechdienst: Sprechdienst, verlauf: Verlaufsbuch, einstellungen: Callable[[], AppEinstellungen]) -> None:
+    def __init__(self, sprechdienst: Sprechdienst, verlauf: Verlaufsbuch, einstellungen: Callable[[], AppEinstellungen],
+                 stimmen: Stimmenquelle) -> None:
         self.dienst = sprechdienst
         self.verlauf = verlauf
         self._e = einstellungen
+        self.stimmen = stimmen
+
+    async def stimmenwahl(self) -> tuple[list[Stimme], str]:
+        """Was zur Wahl steht: die festen Stimmen des Katalogs und die eigenen, die die Vertonung Vorlesen freigibt;
+        dazu ein Satz, was nicht zu holen war (leer, wenn alles da ist)."""
+        stimmen: list[Stimme] = []
+        stand: list[str] = []
+        try:
+            namen, _ = await self.dienst.katalog()
+            stimmen += [Stimme(name=n, titel=stimmtitel(n)) for n in namen]
+        except LeitstellenFehler as f:
+            stand.append(f"Sprechdienst antwortet nicht: {f.meldung}")
+        try:
+            stimmen += [Stimme(name=PRIVAT + s.id, titel=s.name, art="eigen") for s in await self.stimmen.eigene()]
+        except VerbundFehler as f:
+            stand.append(f"Vertonung antwortet nicht: {f.meldung}")
+        return stimmen, "; ".join(stand)
 
     async def vorbereiten(self, a: Vorleseanfrage) -> Auftrag:
-        """Teilt den Text und legt Stimme, Sprache und Tempo fest; abgelehnt mit Grund, bevor etwas spricht. Eine Stimme aus der
-        Anfrage (Probehören) muss im Katalog stehen, sobald er bekannt ist."""
+        """Teilt den Text und legt Stimme, Sprache und Tempo fest; abgelehnt mit Grund, bevor etwas spricht. Eine feste
+        Stimme aus der Anfrage (Probehören) muss im Katalog stehen, sobald er bekannt ist; eine eigene Stimme muss die
+        Vertonung freigeben (ihre Probe wird dabei geholt oder kommt aus dem Zwischenspeicher)."""
         e = self._e()
         teile = zerlegen(a.text)
         if not teile:
             raise Abgelehnt("Es gibt nichts vorzulesen")
         stimme = a.stimme or e.stimme
+        sprache, tempo = a.sprache or e.sprache, a.tempo or e.tempo
+        if stimme.startswith(PRIVAT):
+            try:
+                referenz = await self.stimmen.referenz(stimme.removeprefix(PRIVAT))
+            except NichtFreigegeben as f:
+                raise Abgelehnt(f.meldung, 403) from f
+            except VerbundFehler as f:
+                raise Abgelehnt(f"Die Vertonung mit den eigenen Stimmen antwortet nicht: {f.meldung}", 503) from f
+            return Auftrag(teile, stimme, sprache, tempo, referenz.name, referenz)
         if a.stimme:
             katalog = self.dienst.gemerkte_stimmen()
             if katalog is None:
@@ -89,11 +128,11 @@ class Vorleser:
                     katalog = None                        # nicht prüfbar: der Sprechdienst kennt ohnehin nur seinen Katalog
             if katalog is not None and a.stimme not in katalog:
                 raise Abgelehnt(f"Die Stimme {a.stimme} steht nicht im Katalog des Sprechdienstes")
-        return Auftrag(teile, stimme, a.sprache or e.sprache, a.tempo or e.tempo)
+        return Auftrag(teile, stimme, sprache, tempo, stimmtitel(stimme))
 
     async def strom(self, a: Vorleseanfrage, auftrag: Auftrag, konto: Konto) -> AsyncIterator[bytes]:
         name, app = wer(konto)
-        lauf = self.verlauf.beginnen(wer=name, app=app, text=a.text, stimme=auftrag.stimme, tempo=auftrag.tempo)
+        lauf = self.verlauf.beginnen(wer=name, app=app, text=a.text, stimme=auftrag.titel, tempo=auftrag.tempo)
         zustand, meldung = "abgebrochen", ""
         try:
             async for z in self._saetze(auftrag, lauf):
@@ -110,8 +149,13 @@ class Vorleser:
     async def _saetze(self, auftrag: Auftrag, lauf: Laufend) -> AsyncIterator[bytes]:
         nr, gesamt = 0, 0
         for s in auftrag.stuecke:
-            wav = await self.dienst.sprechen(s.text, stimme=auftrag.stimme, sprache=auftrag.sprache, tempo=auftrag.tempo,
-                                             arbeit=f"vorlesen-{lauf.eintrag.id}")
+            arbeit = f"vorlesen-{lauf.eintrag.id}"
+            if auftrag.referenz is not None:
+                wav = await self.dienst.klonen(s.text, referenz=auftrag.referenz, sprache=auftrag.sprache,
+                                               tempo=auftrag.tempo, arbeit=arbeit)
+            else:
+                wav = await self.dienst.sprechen(s.text, stimme=auftrag.stimme, sprache=auftrag.sprache,
+                                                 tempo=auftrag.tempo, arbeit=arbeit)
             ms = dauer_ms(wav)
             lauf.satz(ms)
             yield zeile(StromSatz(nr=nr, text=s.text, von_zeichen=s.von, bis_zeichen=s.bis, dauer_ms=ms,

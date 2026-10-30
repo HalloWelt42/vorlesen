@@ -3,7 +3,7 @@ App-Schlüssel, auf Wunsch im Auftrag der Person).
 
 - `POST /api/v1/vorlesen/strom`: der Text Satz für Satz als NDJSON (`application/x-ndjson`), je Zeile eine `StromZeile`.
   Was vor dem ersten Satz scheitert, ist eine Antwort mit Grund; bricht der Leser ab, wird nichts mehr gesprochen.
-- `GET /api/v1/stimmen`: Katalog des Sprechdienstes und die Sprachen.
+- `GET /api/v1/stimmen`: Katalog des Sprechdienstes, die freigegebenen eigenen Stimmen und die Sprachen.
 - `GET /api/v1/verlauf`: laufende und die jüngsten Vorlesungen, seitenweise."""
 
 from __future__ import annotations
@@ -15,20 +15,15 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from appkern.anmeldung import Konto
 from appkern.app import Geruest
-from appkern.leitstelle import LeitstellenFehler
 
 from .einstellungen import SPRACHEN
-from .modell import Stimme, Stimmen, StromZeile, Verlauf, Vorleseanfrage
+from .modell import Stimmen, StromZeile, Verlauf, Vorleseanfrage
 from .vorlesen import Abgelehnt, Vorleser
 
 
 class NdjsonAntwort(StreamingResponse, JSONResponse):
     """Strom aus JSON-Zeilen; als `JSONResponse` gekennzeichnet, damit das Schema den Vertrag der Zeilen zeigt."""
     media_type = "application/x-ndjson"
-
-
-def stimmtitel(name: str) -> str:
-    return " ".join(t.capitalize() for t in name.split("_"))
 
 
 def router(geruest: Geruest, vorleser: Vorleser) -> APIRouter:
@@ -53,11 +48,9 @@ def router(geruest: Geruest, vorleser: Vorleser) -> APIRouter:
 
     @r.get("/stimmen", response_model=Stimmen)
     async def stimmen() -> Stimmen:
-        try:
-            namen, _ = await vorleser.dienst.katalog()
-        except LeitstellenFehler as f:
-            return Stimmen(stimmen=[], sprachen=SPRACHEN, stand=f"Sprechdienst antwortet nicht: {f.meldung}")
-        return Stimmen(stimmen=[Stimme(name=n, titel=stimmtitel(n)) for n in namen], sprachen=SPRACHEN)
+        """Feste Stimmen des Katalogs und die eigenen, die die Vertonung Vorlesen freigibt."""
+        liste, stand = await vorleser.stimmenwahl()
+        return Stimmen(stimmen=liste, sprachen=SPRACHEN, stand=stand)
 
     @r.get("/verlauf", response_model=Verlauf)
     async def verlauf(ab: int = Query(0, ge=0), anzahl: int = Query(50, ge=1, le=200)) -> Verlauf:
