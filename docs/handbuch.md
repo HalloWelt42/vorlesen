@@ -92,8 +92,7 @@ die Probe als fertig.
 ### 6. Apps anschließen
 
 In jeder App, die vorlesen soll, unter Einstellungen, Verbindungen das Feld "Vorlesen" auf {{adresse}} setzen (die
-Auswahl bietet die App aus dem Verzeichnis an). Die [[Pinnwand]] bekommt die Adresse über ihre Umgebung beim
-Ausrollen.
+Auswahl bietet die App aus dem Verzeichnis an), etwa in der [[Pinnwand]] unter Einstellungen, App und Verbindungen.
 
 Probe: in der App steht Vorlesen in der Fußleiste grün, und ein Lautsprecher liest vor; im Verlauf hier steht die App.
 
