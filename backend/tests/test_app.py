@@ -80,7 +80,7 @@ class Welt:
                 {"id": "klangwerk-sprechen", "x-leitstelle": {"name": "Klangwerk Sprechen", "faehigkeiten": ["stimme"]}}]})
         if pfad == f"{DIENST}/tts/voices":
             self.katalog_rufe += 1
-            return httpx.Response(200, json={"speakers": ["serena", "aiden", "uncle_fu"], "languages": ["german", "english"]})
+            return httpx.Response(200, json={"speakers": ["stimme_b", "stimme_a", "stimme_c"], "languages": ["german", "english"]})
         if pfad == f"{KLONEN}/tts/clone":
             inhalt = request.content.decode("latin-1")
             self.geklont.append({"modus": "icl" if 'name="modus"\r\n\r\nicl' in inhalt else "abdruck",
@@ -174,21 +174,21 @@ async def test_vorlesen_satz_fuer_satz(umgebung):
 async def test_stimme_tempo_einstellungen_und_probe(umgebung):
     app, welt, c = umgebung
     h = await einrichten(c, app)
-    r = await c.patch("/api/v1/einstellungen", headers=h, json={"werte": {"stimme": "aiden", "tempo": 1.2}})
+    r = await c.patch("/api/v1/einstellungen", headers=h, json={"werte": {"stimme": "stimme_a", "tempo": 1.2}})
     assert r.status_code == 200
     await c.post("/api/v1/vorlesen/strom", headers=h, json={"text": "Eins."})
-    assert (welt.gesprochen[-1]["voice"], welt.gesprochen[-1]["speed"]) == ("aiden", 1.2)
+    assert (welt.gesprochen[-1]["voice"], welt.gesprochen[-1]["speed"]) == ("stimme_a", 1.2)
     # Probehören mit einer anderen Katalogstimme; was nicht im Katalog steht, gibt es nicht
-    await c.post("/api/v1/vorlesen/strom", headers=h, json={"text": "Zwei.", "stimme": "uncle_fu", "tempo": 0.8})
-    assert (welt.gesprochen[-1]["voice"], welt.gesprochen[-1]["speed"]) == ("uncle_fu", 0.8)
+    await c.post("/api/v1/vorlesen/strom", headers=h, json={"text": "Zwei.", "stimme": "stimme_c", "tempo": 0.8})
+    assert (welt.gesprochen[-1]["voice"], welt.gesprochen[-1]["speed"]) == ("stimme_c", 0.8)
     await c.post("/api/v1/vorlesen/strom", headers=h, json={"text": "Vier.", "stimme": ""})     # leer: Vorgabe des Dienstes
     assert "voice" not in welt.gesprochen[-1]
     r = await c.post("/api/v1/vorlesen/strom", headers=h, json={"text": "Drei.", "stimme": "unbekannt"})
     assert r.status_code == 400 and "nicht im Katalog" in r.json()["detail"]
     stimmen = (await c.get("/api/v1/stimmen", headers=h)).json()
-    assert [s["titel"] for s in stimmen["stimmen"]] == ["Aiden", "Serena", "Uncle Fu"] and stimmen["sprachen"]["german"] == "Deutsch"
+    assert [s["titel"] for s in stimmen["stimmen"]] == ["Stimme A", "Stimme B", "Stimme C"] and stimmen["sprachen"]["german"] == "Deutsch"
     angebot = (await c.get("/api/v1/einstellungen/angebot/stimme", headers=h)).json()
-    assert [o["wert"] for o in angebot["optionen"]] == ["", "aiden", "serena", "uncle_fu"] and not angebot["eigener_wert"]
+    assert [o["wert"] for o in angebot["optionen"]] == ["", "stimme_a", "stimme_b", "stimme_c"] and not angebot["eigener_wert"]
     assert welt.katalog_rufe == 1                                   # der Katalog wird eine Weile gemerkt
 
 
