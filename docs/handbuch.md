@@ -7,8 +7,8 @@ daten:
 sicherung:
   - "nach der Regel des Appkerns eine Kopie von `vorlesen.sqlite` nach `{{wurzel}}/sicherungen`, wöchentlich und vor dem Ausrollen (nur, wenn die jüngste älter als 24 Stunden ist), nie ohne Änderung, höchstens drei Stände (Einstellungen, Sicherung)"
 schluessel_orte:
-  - "Pi: Einstellungen im Verzeichnis `vorlesen.sqlite`: App-Schlüssel der Kellerwolke, Schlüssel der Leitstelle (in der Oberfläche unter Einstellungen, verdeckt)"
-  - "Pi: `{{wurzel}}/.env`, Modus 0600, für Werte, die nicht ins Repo gehören"
+  - "Pi: Einstellungen im Verzeichnis `vorlesen.sqlite`: App-Schlüssel der Kellerwolke (in der Oberfläche unter Einstellungen, verdeckt)"
+  - "Pi: `{{wurzel}}/.env`, Modus 0600: VORLESEN_LEITSTELLE_ADRESSE und VORLESEN_LEITSTELLE_SCHLUESSEL (Schlüssel der Anwendung Vorlesen in der Leitstelle)"
   - "Pi: `{{wurzel}}/zertifikate/`, Blattzertifikat mit Schlüssel aus der Hausstelle (vom Ausrollen)"
 einrichten: einrichten.sh
 stand: 54ec546
@@ -82,9 +82,10 @@ Probe: `/api/v1/app` meldet `"einrichtung_noetig": false` und den Besitzer.
 
 ### 5. Leitstelle und Stimme
 
-Aus der Sicherung stehen sie im Verzeichnis. Frisch: in der [[Leitstelle]] die Anwendung "Vorlesen" mit der Fähigkeit
-stimme anlegen, ihren Schlüssel unter Einstellungen, Verbindungen eintragen und "Adresse dieser App" auf {{adresse}}
-setzen. Unter Vorlesen Stimme, Sprache und Tempo wählen und eine Probe hören.
+Frisch: in der [[Leitstelle]] die Anwendung "Vorlesen" mit der Fähigkeit stimme anlegen und ihren Schlüssel als
+`VORLESEN_LEITSTELLE_SCHLUESSEL` in `{{wurzel}}/.env` (Modus 0600) schreiben, dazu `VORLESEN_LEITSTELLE_ADRESSE` mit
+{{umgebung:VORLESEN_LEITSTELLE_ADRESSE}}; dann `docker compose -f compose.pi.yml up -d vorlesen`. Aus der Sicherung
+gilt dasselbe, die .env gehört nicht zur Sicherung der Datenbank. Unter Vorlesen Stimme, Sprache und Tempo wählen und eine Probe hören.
 
 Probe: in der Fußleiste sind Kellerwolke und Leitstelle grün, und "Probe vorlesen" spricht hörbar; der Verlauf zeigt
 die Probe als fertig.
@@ -92,7 +93,7 @@ die Probe als fertig.
 ### 6. Apps anschließen
 
 In jeder App, die vorlesen soll, unter Einstellungen, Verbindungen das Feld "Vorlesen" auf {{adresse}} setzen (die
-Auswahl bietet die App aus dem Verzeichnis an), etwa in der [[Pinnwand]] unter Einstellungen, App und Verbindungen.
+Auswahl bietet die App aus dem Verzeichnis an). Die [[Pinnwand]] bekommt sie über `PINNWAND_VORLESEN_ADRESSE` in ihrer `.env` auf dem Pi.
 
 Probe: in der App steht Vorlesen in der Fußleiste grün, und ein Lautsprecher liest vor; im Verlauf hier steht die App.
 
