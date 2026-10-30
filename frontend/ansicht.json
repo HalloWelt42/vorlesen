@@ -1,0 +1,8 @@
+{
+  "seiten": [
+    { "name": "vorlesen", "pfad": "/vorlesen", "wechsel": [ { "klick": "Probe vorlesen", "fest": [".vl-probe"] } ] },
+    { "name": "verlauf", "pfad": "/verlauf" },
+    { "name": "protokoll", "pfad": "/protokoll" },
+    { "name": "einstellungen", "pfad": "/einstellungen" }
+  ]
+}

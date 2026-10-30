@@ -1,0 +1,28 @@
+# Vorschaltdienst (Lehre 4): TLS mit dem Blattzertifikat der Hausstelle und HTTP/2 auf 8671, die App dahinter ohne
+# TLS und von außen nicht erreichbar; jeder Zugriff als JSON im Protokoll (docker compose -f compose.pi.yml logs vorne),
+# damit sich messen lässt, was Geräte wirklich abfragen. Beim Zugriff per IP steht kein Servername im Handschlag, darum
+# default_sni: der Name vorlesen.local steht in jedem Zertifikat der App (das Ausrollen nimmt ihn immer auf), so
+# braucht der Vorschaltdienst keine Heimadresse. Kein HSTS: unter einem Rechnernamen würde es alle Ports des Pi auf
+# HTTPS zwingen.
+{
+	admin off
+	auto_https off
+	default_sni vorlesen.local
+}
+
+:8671 {
+	tls /zertifikate/vorlesen.pem /zertifikate/vorlesen-schluessel.pem
+	log {
+		output stdout
+		format json
+	}
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+		-Server
+	}
+	# Ereignisströme, Ton und Hochladen gehen ungepuffert durch
+	reverse_proxy vorlesen:8000 {
+		flush_interval -1
+	}
+}
