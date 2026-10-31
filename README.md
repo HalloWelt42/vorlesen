@@ -1,5 +1,10 @@
 # Vorlesen
 
+> **Stillgelegt am 31.10.2026.** Vorgelesen wird wieder über die
+> [Vertonung](https://github.com/HalloWelt42/vertonung), die die Stimmen und ihre Freigaben hält; jede App nutzt dafür
+> den Baustein `appkern.vorlesen` des [Appkerns](https://github.com/HalloWelt42/appkern). Dieses Repo bleibt als
+> Archiv erhalten.
+
 Vorlesen liest Text vor, Satz für Satz: die eine Stelle für Sprachausgabe der eigenen Apps. Eine App schickt Text,
 Vorlesen teilt ihn an Satzgrenzen und liefert den Ton Satz für Satz als Strom, damit die Wiedergabe sofort beginnt.
 Gesprochen wird nur vom Sprechdienst des [Klangwerks](https://github.com/HalloWelt42/klangwerk) über die
